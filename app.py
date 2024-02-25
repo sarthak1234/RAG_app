@@ -11,6 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain_community.vectorstores import FAISS
 from langchain_core.output_parsers import StrOutputParser
+import tiktoken
 
 TMP_DIR = Path(__file__).resolve().parent.joinpath('data', 'tmp')
 
@@ -28,10 +29,34 @@ def split_documents(documents):
     texts = text_splitter.split_documents(documents)
     return texts
 
+def get_document_chunks(documents):
+    encoding  = tiktoken.encoding_for_model('text-embedding-ada-002')
+    sum = 0
+    document_chunks = []
+    all_chunks = []
+    MAX_TPM = 150000
+    for document in documents : 
+        encoded_text = encoding.encode(document.page_content)
+        sum = sum+len(encoded_text)
+        if sum < MAX_TPM : 
+            document_chunks.append(document)
+        else : 
+            sum = 0
+            all_chunks.append(document_chunks)
+            document_chunks = []
+    return all_chunks
+
 def get_faiss_retriever(texts):
+    text_chunks = get_document_chunks(texts)
     embeddings = OpenAIEmbeddings()
-    vector = FAISS.from_documents(texts, embeddings)
-    retriever = vector.as_retriever(search_kwargs = {'k':5})
+    for idx,chunk in enumerate(text_chunks):
+        if idx==0 : 
+            vector_index  = FAISS.from_documents(chunk, embeddings)
+        else : 
+            vector_index_i = FAISS.from_documents(chunk, embeddings)
+            vector_index.merge_from(vector_index_i) 
+    retriever = vector_index.as_retriever()
+        
     return retriever
 
 def get_response(question,retriever,llm):
