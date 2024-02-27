@@ -35,6 +35,7 @@ def get_document_chunks(documents):
     document_chunks = []
     all_chunks = []
     MAX_TPM = 150000
+    MAX_TPM_checker = 0
     for document in documents : 
         encoded_text = encoding.encode(document.page_content)
         sum = sum+len(encoded_text)
@@ -42,13 +43,17 @@ def get_document_chunks(documents):
             document_chunks.append(document)
         else : 
             sum = 0
+            MAX_TPM_checker = 1
             all_chunks.append(document_chunks)
             document_chunks = []
+    if MAX_TPM_checker==0 :
+        all_chunks.append(document_chunks)
     return all_chunks
 
 def get_faiss_retriever(texts):
     text_chunks = get_document_chunks(texts)
     embeddings = OpenAIEmbeddings()
+
     for idx,chunk in enumerate(text_chunks):
         if idx==0 : 
             vector_index  = FAISS.from_documents(chunk, embeddings)
