@@ -1,0 +1,2 @@
+langchain==0.1.6
+tiktoken==0.6.0
